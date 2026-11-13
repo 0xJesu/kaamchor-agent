@@ -46,14 +46,11 @@ export class KaamAgent extends Agent<Env> {
       }
       console.log(JSON.stringify({ type: "update", update_id: update.update_id, msg: m.text ? "text" : "other", len: m.text?.length ?? 0 }));
       if (typeof m.text !== "string") { await this.send("I can only read text messages and links for now. Photos, voice notes and files aren't supported yet."); return; }
-      // Long tasks (coder/thinker calls) must outlive the webhook: keep the DO alive and don't block the caller.
-      const work = (async () => {
-        const stop = await this.keepAlive();
-        try { await this.route(m.text.trim()); }
-        catch (e) { await this.fail(e); }
-        finally { stop(); }
-      })();
-      this.ctx.waitUntil(work);
+      // Commands are instant; anything that may call the model runs in its own alarm invocation
+      // (survives after the webhook returns, gets its own logs, no 30 s waitUntil cutoff).
+      const text = m.text.trim();
+      if (text.startsWith("/") && !/^\/summary/i.test(text)) { await this.route(text); return; }
+      await this.schedule(0, "processText", { text }, { retry: { maxAttempts: 1 } });
       return;
     } catch (e) {
       console.log(JSON.stringify({ type: "error", where: "handleUpdate", error: String(e).slice(0, 300) }));
@@ -68,6 +65,14 @@ export class KaamAgent extends Agent<Env> {
     console.log(JSON.stringify({ type: "error", where: "route", error: String(e).slice(0, 300) }));
     logActivity(this.q, "error", String(e).slice(0, 200));
     await this.send("Something went wrong on my side. Please try again in a minute.").catch(() => {});
+  }
+
+  /** Alarm callback for model-bound messages. */
+  async processText(p: { text: string }) {
+    const t0 = Date.now();
+    try { await this.route(p.text); }
+    catch (e) { await this.fail(e); }
+    finally { console.log(JSON.stringify({ type: "processed", duration_ms: Date.now() - t0 })); }
   }
 
   private async route(text: string) {
