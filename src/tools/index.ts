@@ -47,7 +47,7 @@ export const TOOLS = [
   fn("gh_list", "List open issues or pull requests of a repo.", { repo: str("repo"), kind: { type: "string", enum: ["issues", "prs"] } }, ["repo", "kind"]),
   fn("gh_branch", "Create a feature branch (from the default branch). Required before any edit. Use a name like kaam/add-readme.", { repo: str("repo"), branch: str("new branch name") }, ["repo", "branch"]),
   fn("code_edit", "CODER: edit an existing file on a feature branch. A specialist coding model rewrites the file following your instruction and commits it. Give a precise, complete instruction.", { repo: str("repo"), path: str("file path"), branch: str("feature branch (not the default branch)"), instruction: str("exactly what to change"), message: str("commit message") }, ["repo", "path", "branch", "instruction"]),
-  fn("code_create", "CODER: create a new file on a feature branch from a spec and commit it.", { repo: str("repo"), path: str("new file path"), branch: str("feature branch"), instruction: str("what the file must contain/do"), message: str("commit message") }, ["repo", "path", "branch", "instruction"]),
+  fn("code_create", "CODER: create a new file on a feature branch from a spec and commit it.", { repo: str("repo"), path: str("new file path"), branch: str("feature branch"), instruction: str("what the file must contain/do"), context: str("relevant facts/code you gathered, optional"), message: str("commit message") }, ["repo", "path", "branch", "instruction"]),
   fn("gh_pr", "Open a pull request from a feature branch into the default branch. Never merges.", { repo: str("repo"), branch: str("feature branch"), title: str("PR title"), body: str("PR description") }, ["repo", "branch", "title"]),
   fn("get_time", "Current date and time in IST.", {}, []),
 ];
@@ -111,8 +111,15 @@ ${f.text}`, 6000);
         return await h.gh.put(repo, String(a.path), code, String(a.branch), String(a.message || `kaam: ${String(a.instruction).slice(0, 60)}`), f.sha);
       }
       case "code_create": {
-        const out = await h.sub("code", "You are an expert programmer. Write the requested file. Output ONLY the complete file contents inside one fenced code block.", `File: ${a.path}
-Spec: ${a.instruction}`, 6000);
+        // Give the coder real repo context so the file fits this project, not a generic template.
+        const repoFull = await h.gh.repoName(String(a.repo));
+        const ctx: string[] = [];
+        for (const f of ["README.md", "package.json"]) {
+          const got = await h.gh.getFile(repoFull, f, String(a.branch)).catch(() => null);
+          if (got) ctx.push(`--- ${f} ---\n${got.text.slice(0, 4000)}`);
+        }
+        const out = await h.sub("code", "You are an expert programmer. Write the requested file so it fits THIS repository: use its real commands, names and structure from the context. Output ONLY the complete file contents inside one fenced code block.",
+          `File: ${a.path}\nSpec: ${a.instruction}\n${a.context ? `Extra context: ${a.context}\n` : ""}\nRepository context:\n${ctx.join("\n\n") || "(none)"}`, 6000);
         const code = extractCode(out);
         if (code.trim().length < 5) return { error: "coder returned nothing usable" };
         return await h.gh.put(String(a.repo), String(a.path), code, String(a.branch), String(a.message || `kaam: add ${a.path}`));

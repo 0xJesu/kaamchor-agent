@@ -117,6 +117,10 @@ export class GitHub {
 
 /** Models sometimes wrap code in fences or add prose; keep only the code. */
 export function extractCode(s: string): string {
-  const m = s.match(/```[\w+-]*\n([\s\S]*?)```/);
-  return (m ? m[1] : s).replace(/\s+$/, "") + "\n";
+  // Outer fence = first opening fence .. LAST closing fence, so nested blocks (bash inside markdown) survive.
+  const open = s.match(/```[\w+-]*[^\S\n]*\n/);
+  if (!open) return s.replace(/\s+$/, "") + "\n";
+  const start = open.index! + open[0].length;
+  const end = s.lastIndexOf("```");
+  return (end > start ? s.slice(start, end) : s.slice(start)).replace(/\s+$/, "") + "\n";
 }

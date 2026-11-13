@@ -93,3 +93,12 @@ describe("caps", () => {
     const d = new Counter(); for (let i = 0; i < 14; i++) d.tool(); expect(() => d.tool()).toThrow(CapError);
   });
 });
+
+import { extractCode } from "../src/tools/github";
+describe("extractCode", () => {
+  it("keeps nested fences inside the outer block", () => {
+    const out = "Here you go:\n```markdown\n# Title\n\n```bash\nnpm test\n```\n\nDone.\n```\nHope it helps";
+    expect(extractCode(out)).toBe("# Title\n\n```bash\nnpm test\n```\n\nDone.\n");
+  });
+  it("plain code without fences passes through", () => expect(extractCode("const a = 1;  ")).toBe("const a = 1;\n"));
+});
