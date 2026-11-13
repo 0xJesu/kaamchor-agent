@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kaamchor-agent",
+  "main": "src/index.ts",
+  "account_id": "2d7ad5fc1045909d295a429e71cfe187",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "ai": { "binding": "AI" },
+  "durable_objects": { "bindings": [{ "name": "AGENT", "class_name": "KaamAgent" }] },
+  // Free plan requires SQLite-backed Durable Objects.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["KaamAgent"] }],
+  "vars": {
+    "AGENT_NAME": "Kaam",
+    "MODEL_ID": "@cf/qwen/qwen3-30b-a3b-fp8",
+    "THINKING": "on",
+    "CODER_MODEL_ID": "@cf/qwen/qwen2.5-coder-32b-instruct",
+    "THINK_MODEL_ID": "@cf/openai/gpt-oss-120b",
+    "FALLBACK_MODEL_ID": "@cf/zai-org/glm-4.7-flash",
+    "TIMEZONE": "Asia/Kolkata",
+    "MORNING_BRIEFING_TIME": "08:00",
+    "EVENING_WRAPUP_TIME": "20:00",
+    "QUIET_HOURS": "23:00-07:00",
+    "DAILY_NEURON_LIMIT": "10000",
+    "JOB_RESERVE": "500",
+    "HARD_STOP_MARGIN": "200",
+    "BUDGET_SAFETY_FACTOR": "1.2",
+    "DEMO_END_AT": ""
+  }
+}
